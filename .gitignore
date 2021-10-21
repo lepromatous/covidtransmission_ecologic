@@ -2,8 +2,10 @@
 .Rhistory
 .Rapp.history
 
-# csv
+
+# filetypes
 *.csv
+*.fst
 
 # Session Data files
 .RData

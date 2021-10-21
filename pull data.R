@@ -9,6 +9,10 @@ library(readxl)
 library(httr)
 library(vroom)
 library(RSocrata)
+library(janitor)
+library(sf)
+library(fst)
+
 
 ################################################################################
 ################################################################################
@@ -75,7 +79,8 @@ prez %>%
 #prez2012 <- subset(prez, prez$year==2012)
 prez2016 <- subset(prez, prez$year==2016)
 #prez2020 <- subset(prez, prez$year==2020)
-
+rm(prez)
+gc()
 ################################################################################
 ################################################################################
 ### COUNTY CASE COUNTS (NYT): https://github.com/nytimes/covid-19-data/blob/master/us-counties.csv
@@ -124,11 +129,37 @@ covid %>%
   left_join(household_size, by="fips") %>%
   left_join(adi, by="fips") %>%
   left_join(prez2016, by="fips") %>%
-  left_join(uptake, by="fips") %>%
   left_join(hesitant, by="fips") -> df
-  
 
-rm(prez)
+### clean environment  
+rm(list=setdiff(ls(), c("df", "uptake")))
 gc()
 
+### clean data to merge uptake
+min(uptake$date) ## date not the same as in df
+df <- subset(df, df$date>=min(uptake$date))
 
+### merge uptake
+df <- merge(df, uptake, by=c("date", "fips"))
+rm(uptake)
+
+gc()
+
+## clean names and drop dup/unused columns
+df %>%
+  janitor::clean_names() -> df
+
+df %>%
+  select(-c(name, variable, year, state_y, county_name, office, candidate,
+            version, mode, county_name_2, state, state_code, geographical_point,
+            county_boundary, state_boundary, recip_county, recip_state)) %>%
+  rename(
+    mean_house_size = "estimate",
+    error_house_size = "moe",
+    state = "state_x",
+    state_abbr = "state_po",
+    winner2016 = "party"
+    )-> df
+
+library(fst)
+write.fst(df, "C:/Users/Wiemkt/OneDrive - Pfizer/Documents/Research/COVID Transmission/covidtransmission_ecologic/uptake.fst")
