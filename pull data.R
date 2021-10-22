@@ -22,17 +22,29 @@ library(fst)
 #varz$name[varz$label=='Estimate!!Total:!!In households:']
 
 ## ACS Tables: https://api.census.gov/data/2016/acs/acs5/subject/groups/S1101.html
-household_size <- get_acs(
+## drop moe from house size
+get_acs(
   geography = "county",
   year = 2019,
-  variables = c(house_size = "S1101_C01_002E")
-)
+  variables = c(house_size = "S1101_C01_002E",
+                pop = "B01003_001E")
+) %>%
+  select(-c(moe)) -> household_size
+
+household_size %>%
+  pivot_wider(names_from = variable,
+              values_from = estimate) -> household_size
+
+
 ### check nchar of fips
 #table(nchar(household_size$GEOID))
 ### rename
+### if add vars above later, rename drops the E
 household_size %>%
   rename(
-    fips = "GEOID"
+    fips = "GEOID",
+    county_pop = "B01003_001",
+    mean_house_size = "S1101_C01_002"
   ) -> household_size
 
 ################################################################################
@@ -150,16 +162,41 @@ df %>%
   janitor::clean_names() -> df
 
 df %>%
-  select(-c(name, variable, year, state_y, county_name, office, candidate,
+  select(-c(name, year, state_y, county_name, office, candidate,
             version, mode, county_name_2, state, state_code, geographical_point,
             county_boundary, state_boundary, recip_county, recip_state)) %>%
   rename(
-    mean_house_size = "estimate",
-    error_house_size = "moe",
     state = "state_x",
     state_abbr = "state_po",
     winner2016 = "party"
     )-> df
+
+### what month was peak of cases by county?
+df %>%
+  group_by(
+    fips
+  ) %>%
+  slice_max(
+            n = 1, 
+            order_by = c(new_cases, date)
+              ) %>%
+  ungroup() -> test
+
+
+### quartiles of hesitant
+### also rename them to low medium high
+df$hesitant_quartile <- factor(Hmisc::cut2(df$estimated_hesitant, g=3), levels = levels(Hmisc::cut2(df$estimated_hesitant, g=3)), labels = c("Low", "Medium", "High"))
+
+### also cut at 3rd quartile. 
+summary(df.mod$estimated_hesitant) # 0.1615 use df.mod from models.R 
+df$hesitant_3rd_quartile <- factor(ifelse(df$estimated_hesitant<0.1615,0,1), levels=c(0,1), labels = c("Low Hesitancy", "High Hesitancy"))
+
+
+### cut up series complete at 3rd quartile
+summary(df.mod$series_complete_pop_pct)[5] ## 50.3 ### need to use df.mod from models.R b/c cant contaminate with duplicates
+
+df$vax_3rd_quartile <- factor(ifelse(df$series_complete_pop_pct<50.3,0,1), levels=c(0,1), labels = c("Low Coverage", "High Coverage"))
+
 
 library(fst)
 write.fst(df, "C:/Users/Wiemkt/OneDrive - Pfizer/Documents/Research/COVID Transmission/covidtransmission_ecologic/uptake.fst")
