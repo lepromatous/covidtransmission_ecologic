@@ -12,7 +12,7 @@ library(RSocrata)
 library(janitor)
 library(sf)
 library(fst)
-
+library(mvmeta)
 
 ################################################################################
 ################################################################################
@@ -196,6 +196,67 @@ df$hesitant_3rd_quartile <- factor(ifelse(df$estimated_hesitant<0.1615,0,1), lev
 summary(df.mod$series_complete_pop_pct)[5] ## 50.3 ### need to use df.mod from models.R b/c cant contaminate with duplicates
 
 df$vax_3rd_quartile <- factor(ifelse(df$series_complete_pop_pct<50.3,0,1), levels=c(0,1), labels = c("Low Coverage", "High Coverage"))
+
+
+### labor stats
+## https://www.bls.gov/lau/
+download.file("https://www.bls.gov/web/metro/laucntycur14.zip", "C:/Users/Wiemkt/Downloads/laucntycur14.zip")
+unzip(zipfile="C:/Users/Wiemkt/Downloads/laucntycur14.zip", files = "laucntycur14.xlsx", exdir=".")
+labor <- readxl::read_excel("laucntycur14.xlsx", skip = 4)
+names(labor) <- c("laus_code", "fips_state", "fips_county", "name", "time", "n_labor_force", "n_employed", "n_unemployed", "unemployment_rate")
+labor <- labor[-1,]
+labor$time[labor$time=="Aug-21 p"] <- "Aug-21"
+
+## dump zip file
+file.remove("C:/Users/Wiemkt/Downloads/laucntycur14.zip") 
+
+### make fips code
+labor$fips <- stringr::str_pad(paste0(labor$fips_state, labor$fips_county), pad="0", side="left", width=5)
+
+### create function for map to pivot wider by fips and time
+fxn <- function(timez){
+  labor %>%
+    filter(time == timez) %>%
+    pivot_wider(names_from = time, values_from = c(n_labor_force, n_employed, n_unemployed, unemployment_rate)) %>%
+    ungroup()-> test
+  return(test)
+}
+
+t <- names(table(labor$time))
+
+### map over function for teach unique time period
+t %>%
+  purrr::map(
+     ~fxn(timez = .)
+            ) %>%
+  bind_cols() -> huh
+ 
+
+## find dup columns to drop
+drops <- c(
+  names(huh)[grep("laus", names(huh))][-1], ## keep first laus
+  names(huh)[grep("fips", names(huh))][-3],## keep actual bound fips code
+  names(huh)[grep("name", names(huh))] ### name not useful
+  )
+
+### clean
+huh %>%
+  select(-drops) %>%
+  rename(
+    laus_code = "laus_code...1",
+    fips = "fips...5"
+    )-> labor
+
+
+### merge
+df <- merge(df, labor, by="fips")
+df %>%
+  janitor::clean_names() -> df
+
+df %>%
+  mutate(
+    unemployment_difference = unemployment_rate_aug_21 - unemployment_rate_aug_20
+  ) -> df
 
 
 library(fst)

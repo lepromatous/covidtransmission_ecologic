@@ -39,13 +39,16 @@ df.mod %>%
     state %nin% c("District of Columbia", "Puerto Rico", "Virgin Islands")
   ) -> df.mod
 
+summary(df.mod$`unemployment_rate_aug_21`)
+
 ### Run model  
 mod1 <- MASS::glm.nb(cases ~ mean_house_size + 
                        winner2016 + 
                        hesitant_3rd_quartile + 
                        relevel(factor(svi_category), ref="Very Low Vulnerability") + 
                        vax_3rd_quartile  + 
-                       vax_3rd_quartile  * hesitant_3rd_quartile + 
+                       #vax_3rd_quartile  * hesitant_3rd_quartile + 
+                       unemployment_difference + 
                        # mean_house_size * relevel(factor(svi_category), ref="Very Low Vulnerability") +  ### not significant
                        offset(log(county_pop)), 
                      data=df.mod)
