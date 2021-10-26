@@ -16,10 +16,13 @@ library(lmtest)
 library(MASS)
 library(Hmisc)
 library(tidyverse)
+library(fst)
 
 ### read data
+### pc version
 df <- read.fst("C:/Users/Wiemkt/OneDrive - Pfizer/Documents/Research/COVID Transmission/covidtransmission_ecologic/uptake.fst")
-
+## mac version
+df <- read.fst("/Users/timwiemken/Library/Mobile Documents/com~apple~CloudDocs/Work/Pfizer/covidtransmission_ecologic/uptake.fst")
 ### select only most recent date by county
 df %>%
   group_by(

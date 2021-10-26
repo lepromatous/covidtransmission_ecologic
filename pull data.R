@@ -14,7 +14,9 @@ library(sf)
 library(fst)
 library(mvmeta)
 library(gsheet)
-
+library(devtools)
+library(blsAPI)
+#install_github("mikeasilva/blsAPI")
 ################################################################################
 ################################################################################
 ### HOUSEHOLD SIZE BY COUNTY (US CENSUS)
@@ -68,7 +70,15 @@ adi %>%
 ################################################################################
 ################################################################################
 ### VOTING 2016 (HARVARD DATAVERSE) https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/VOQCHQ
-prez <- vroom("C:/Users/Wiemkt/OneDrive - Pfizer/Documents/Research/COVID Transmission/covidtransmission_ecologic/countypres_2000-2020.csv")
+
+##PC
+#prez <- vroom("C:/Users/Wiemkt/OneDrive - Pfizer/Documents/Research/COVID Transmission/covidtransmission_ecologic/countypres_2000-2020.csv")
+
+## gsheet
+id <- "1_LyH9ftUkXF_Tp-oXsPV_Z3kenIOgMr7" # google file ID
+prez <- vroom(sprintf("https://docs.google.com/uc?id=%s&export=download", id))
+
+
 ### pad fips
 prez$county_fips <- stringr::str_pad(prez$county_fips, pad = "0", side = "left", width = 5)
 ### rename fips and only keep actual total 
@@ -119,21 +129,33 @@ covid %>%
 # ## remove UNK county
 # uptake <- subset(uptake, uptake$fips!="UNK")
 #table(nchar(uptake$fips))
-uptake <- vroom("C:/Users/Wiemkt/OneDrive - Pfizer/Documents/Research/COVID Transmission/covidtransmission_ecologic/uptake.csv")
+## local
+#uptake <- vroom("C:/Users/Wiemkt/OneDrive - Pfizer/Documents/Research/COVID Transmission/covidtransmission_ecologic/uptake.csv")
+## gdrive
+id <- "1Xqt-B1QBpZs1COAAEn8_R_vz4rMHygY3" # google file ID
+uptake <- vroom(sprintf("https://docs.google.com/uc?id=%s&export=download", id))
 
 ################################################################################
 ################################################################################
 ### VACCINE HESITANCY BY COUNTY (CDC) https://data.cdc.gov/Vaccinations/Social-Vulnerability-Index/ypqf-r5qs (download csv)
-hesitant <- vroom("C:/Users/Wiemkt/OneDrive - Pfizer/Documents/Research/COVID Transmission/covidtransmission_ecologic/Vaccine_Hesitancy_for_COVID-19__County_and_local_estimates.csv")
+# https://data.cdc.gov/Vaccinations/Vaccine-Hesitancy-for-COVID-19-County-and-local-es/q9mh-h2tw   is the maibn link from where the above comes from. 
+#hesitant <- vroom("C:/Users/Wiemkt/OneDrive - Pfizer/Documents/Research/COVID Transmission/covidtransmission_ecologic/Vaccine_Hesitancy_for_COVID-19__County_and_local_estimates.csv")
+### reading from drive doesnt work.  reading from Url is SLOW!
+url <- "https://data.cdc.gov/resource/q9mh-h2tw.csv"
+hesitant <- read.socrata(
+  url = url,
+  app_token = 'chCxsk4zel6QXbaemotF65C9L',
+  email     = "tim.wiemken@gmail.com",
+  password  = "ThisIsNotAGoodP@ssw0rd!!!")
+
 ### rename fips and pad 0
 hesitant %>%
   rename(
-    fips = "FIPS Code"
+    fips = "fips_code"
   ) %>%
   mutate(
     fips = stringr::str_pad(fips, side="left", pad="0", width=5)
   ) -> hesitant
-
 
 ################################################################################
 ################################################################################
@@ -163,8 +185,8 @@ df %>%
   janitor::clean_names() -> df
 
 df %>%
-  select(-c(name, year, state_y, county_name, office, candidate,
-            version, mode, county_name_2, state, state_code, geographical_point,
+  select(-c(name, year, state_y, office, candidate,
+            version, mode, state, state_code, geographical_point,
             county_boundary, state_boundary, recip_county, recip_state)) %>%
   rename(
     state = "state_x",
@@ -189,21 +211,33 @@ df %>%
 df$hesitant_quartile <- factor(Hmisc::cut2(df$estimated_hesitant, g=3), levels = levels(Hmisc::cut2(df$estimated_hesitant, g=3)), labels = c("Low", "Medium", "High"))
 
 ### also cut at 3rd quartile. 
-summary(df.mod$estimated_hesitant) # 0.1615 use df.mod from models.R 
+#summary(df.mod$estimated_hesitant) # 0.1615 use df.mod from models.R 
 df$hesitant_3rd_quartile <- factor(ifelse(df$estimated_hesitant<0.1615,0,1), levels=c(0,1), labels = c("Low Hesitancy", "High Hesitancy"))
 
 
 ### cut up series complete at 3rd quartile
-summary(df.mod$series_complete_pop_pct)[5] ## 50.3 ### need to use df.mod from models.R b/c cant contaminate with duplicates
+#summary(df.mod$series_complete_pop_pct)[5] ## 50.3 ### need to use df.mod from models.R b/c cant contaminate with duplicates
 
 df$vax_3rd_quartile <- factor(ifelse(df$series_complete_pop_pct<50.3,0,1), levels=c(0,1), labels = c("Low Coverage", "High Coverage"))
 
 
 ### labor stats
 ## https://www.bls.gov/lau/
-download.file("https://www.bls.gov/web/metro/laucntycur14.zip", "C:/Users/Wiemkt/Downloads/laucntycur14.zip")
-unzip(zipfile="C:/Users/Wiemkt/Downloads/laucntycur14.zip", files = "laucntycur14.xlsx", exdir=".")
-labor <- readxl::read_excel("laucntycur14.xlsx", skip = 4)
+
+## pc this works, doesnt work well
+# download.file("https://www.bls.gov/web/metro/laucntycur14.zip", "C:/Users/Wiemkt/Downloads/laucntycur14.zip")
+# unzip(zipfile="C:/Users/Wiemkt/Downloads/laucntycur14.zip", files = "laucntycur14.xlsx", exdir=".")
+# labor <- readxl::read_excel("laucntycur14.xlsx", skip = 4)
+
+token <- "5dc8602647524a429c8407e99fcb5106"
+
+payload <- list('seriesid'=c('LAUCN040010000000005','LAUCN040010000000006')) 
+
+response <- blsAPI(payload) 
+json <- fromJSON(response) 
+
+
+
 names(labor) <- c("laus_code", "fips_state", "fips_county", "name", "time", "n_labor_force", "n_employed", "n_unemployed", "unemployment_rate")
 labor <- labor[-1,]
 labor$time[labor$time=="Aug-21 p"] <- "Aug-21"
@@ -290,8 +324,12 @@ df %>%
 
 #https://www.kaggle.com/johnjdavisiv/us-counties-covid19-weather-sociohealth-data
 
-test <- vroom::vroom("C:/Users/Wiemkt/Downloads/US_counties_COVID19_health_weather_data.csv")
+#ßtest <- vroom::vroom("C:/Users/Wiemkt/Downloads/US_counties_COVID19_health_weather_data.csv")
 
 
 library(fst)
+## pc version
 write.fst(df, "C:/Users/Wiemkt/OneDrive - Pfizer/Documents/Research/COVID Transmission/covidtransmission_ecologic/uptake.fst")
+### mac version
+write.fst(df, "/Users/timwiemken/Library/Mobile Documents/com~apple~CloudDocs/Work/Pfizer/covidtransmission_ecologic/uptake.fst")
+
