@@ -13,6 +13,7 @@ library(janitor)
 library(sf)
 library(fst)
 library(mvmeta)
+library(gsheet)
 
 ################################################################################
 ################################################################################
@@ -257,6 +258,39 @@ df %>%
   mutate(
     unemployment_difference = unemployment_rate_aug_21 - unemployment_rate_aug_20
   ) -> df
+
+
+
+#### add education from:  https://www.ers.usda.gov/data-products/county-level-data-sets/ stored on google drive
+
+education <- gsheet::gsheet2tbl("https://docs.google.com/spreadsheets/d/1PjvHfRgOBu-UvGTQ-_dOGwFi0dbSXaF3NJRFJkNKSOk/edit?usp=sharing")
+education %>%
+  janitor::clean_names() %>%
+  rename(
+    fips = "fips_code"
+  ) %>%
+  right_join(df, by = "fips") -> df
+
+
+### clean
+df %>%
+  select(-c(state.x)) %>%
+  rename(
+    state = "state.y"
+  ) -> df
+
+
+
+#data.world.token = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJwcm9kLXVzZXItY2xpZW50OmxlcHJvbWF0b3VzIiwiaXNzIjoiYWdlbnQ6bGVwcm9tYXRvdXM6OmRkZWZkYTRhLTdhODItNGE3ZC04YzQ5LWEyMTNjNDNiNTk1MyIsImlhdCI6MTU4NTY2Mzc1MSwicm9sZSI6WyJ1c2VyX2FwaV9yZWFkIiwidXNlcl9hcGlfd3JpdGUiXSwiZ2VuZXJhbC1wdXJwb3NlIjp0cnVlLCJzYW1sIjp7fX0.rqu14ONNZr9zwa5ClcH-PizxTuhd4yPdc1PEqJAIaIPgcuiexwr8ad1HEvfO8NHS1TIhROpbOR1sggWYmIaoTQ"
+
+#NOAA token 
+#token <- "ldWqEmdVQXPMFotRJzBkNSyLuRJstnIJ"
+
+### other data from kaggle:
+
+#https://www.kaggle.com/johnjdavisiv/us-counties-covid19-weather-sociohealth-data
+
+test <- vroom::vroom("C:/Users/Wiemkt/Downloads/US_counties_COVID19_health_weather_data.csv")
 
 
 library(fst)
