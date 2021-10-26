@@ -224,26 +224,16 @@ df$vax_3rd_quartile <- factor(ifelse(df$series_complete_pop_pct<50.3,0,1), level
 ### labor stats
 ## https://www.bls.gov/lau/
 
-## pc this works, doesnt work well
-# download.file("https://www.bls.gov/web/metro/laucntycur14.zip", "C:/Users/Wiemkt/Downloads/laucntycur14.zip")
-# unzip(zipfile="C:/Users/Wiemkt/Downloads/laucntycur14.zip", files = "laucntycur14.xlsx", exdir=".")
-# labor <- readxl::read_excel("laucntycur14.xlsx", skip = 4)
-
-token <- "5dc8602647524a429c8407e99fcb5106"
-
-payload <- list('seriesid'=c('LAUCN040010000000005','LAUCN040010000000006')) 
-
-response <- blsAPI(payload) 
-json <- fromJSON(response) 
-
-
-
+## works on mac and pc
+download.file("https://www.bls.gov/web/metro/laucntycur14.zip", "~/laucntycur14.zip")
+unzip(zipfile="~/laucntycur14.zip", files = "laucntycur14.xlsx", exdir=".")
+labor <- readxl::read_excel("laucntycur14.xlsx", skip = 4)
+#token <- "5dc8602647524a429c8407e99fcb5106"
 names(labor) <- c("laus_code", "fips_state", "fips_county", "name", "time", "n_labor_force", "n_employed", "n_unemployed", "unemployment_rate")
 labor <- labor[-1,]
 labor$time[labor$time=="Aug-21 p"] <- "Aug-21"
-
 ## dump zip file
-file.remove("C:/Users/Wiemkt/Downloads/laucntycur14.zip") 
+file.remove("~/laucntycur14.zip") 
 
 ### make fips code
 labor$fips <- stringr::str_pad(paste0(labor$fips_state, labor$fips_county), pad="0", side="left", width=5)
@@ -329,7 +319,7 @@ df %>%
 
 library(fst)
 ## pc version
-write.fst(df, "C:/Users/Wiemkt/OneDrive - Pfizer/Documents/Research/COVID Transmission/covidtransmission_ecologic/uptake.fst")
+#write.fst(df, "C:/Users/Wiemkt/OneDrive - Pfizer/Documents/Research/COVID Transmission/covidtransmission_ecologic/uptake.fst")
 ### mac version
 write.fst(df, "/Users/timwiemken/Library/Mobile Documents/com~apple~CloudDocs/Work/Pfizer/covidtransmission_ecologic/uptake.fst")
 
