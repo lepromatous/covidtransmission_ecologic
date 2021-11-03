@@ -20,7 +20,8 @@ bad_stations <- c("72211800482", #Sarasota FL
 station_names %>%
   filter(station_name %nin% bad_stations,
          ctry %in% "US") %>%
-  mutate(station_id = paste0(usaf, wban)) -> station_names
+  mutate(station_id = paste0(usaf, wban)) %>%
+  filter(state %nin% c("", "PR", "VI")) -> station_names
 
 
 url2020 <- "https://www.ncei.noaa.gov/data/global-summary-of-the-day/access/2020/"
@@ -48,9 +49,35 @@ links[1:10]%>%
 
 test <- data.table::rbindlist(dat)
 
-links %>%
-  purrr::map(
-    ~fxn(timez = .)
-  ) %>%
-  bind_cols() -> huh
-         
+map <- tigris::counties(cb = T)
+map %>%
+  filter(STATEFP %nin%c(72, 60, 66, 69, 78 ))  -> map
+  #tigris::shift_geometry()-> map  # move ak/HI
+
+### get centroids of counties and create sf objecct
+centroids <- sf::st_centroid(map$geometry)
+
+centroids <- data.frame(t(sapply(centroids, function(x) unlist(x))))
+centroids <- sf::st_as_sf(centroids, coords=c("X1", "X2"))
+
+### set crs for centroids since decimal degrees use 4269
+sf::st_crs(centroids) <- 4269
+### fix projection
+centroids<-sf::st_transform(centroids, crs =5070)
+                            #crs='ESRI:102003')
+map <- sf::st_transform(map, crs =5070)
+
+station_names %>%
+  filter(!is.na(lon),
+         !is.na(lat)) -> station_names
+station_names <- sf::st_as_sf(station_names, coords = c("lon", "lat")) 
+
+map <- sf::st_transform(map, crs='ESRI:102003')
+centroids <- sf::st_transform(centroids, crs='ESRI:102003')
+
+ggplot()+
+ geom_sf(data=map) + 
+  geom_sf(data=centroids, size=1)
+
+
+
