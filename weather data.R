@@ -56,20 +56,27 @@ station_names<-tigris::shift_geometry(station_names)
 
 
 
-
-ggplot()+
- geom_sf(data=map) + 
-  geom_sf(data=centroids, size=1)
-
-
-
+### find nearest weather station to centroid
 centroids %>% 
   #dplyr::group_by( id ) %>%
   dplyr::mutate( np = sf::st_nearest_feature( geometry, station_names )) -> test
-                 
-test$station <- station_names$station_id[test$np]                
+### this just gives centroid geometry and weather station name - need county name for centroid       
+
+### add back useful stuff          
+test$station_id <- station_names$station_id[test$np]                
+test$state <- station_names$station_name[test$np]                
+test$state <- station_names$state[test$np]                
 
 
+#st_geometry(test)<-NULL
+### put nearest station in map
+map$station_id <- test$station_id
+
+### extract map
+stations <- map
+st_geometry(stations)<-NULL
+
+write.table(stations, "/Users/timwiemken/Library/Mobile Documents/com~apple~CloudDocs/Work/Pfizer/covidtransmission_ecologic/stations_and_counties.csv", sep=",", row.names=F, na="")
 
 
 
