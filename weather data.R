@@ -2,7 +2,11 @@ library(rnoaa)
 library(Hmisc)
 library(tidyverse)
 library(rvest)
+library(tigris)
+library(sf)
 
+
+### get station names and drop some crappy stations
 station_names <- isd_stations()
 bad_stations <- c("72211800482", #Sarasota FL
                   "72334703809", #Dyer, TN
@@ -16,12 +20,57 @@ bad_stations <- c("72211800482", #Sarasota FL
                   "91197721508", #Also in the mountains on Hawaii
                   "99999921514") #On top of a volcano at 11,000' in Hawaii
 
-
 station_names %>%
   filter(station_name %nin% bad_stations,
          ctry %in% "US") %>%
   mutate(station_id = paste0(usaf, wban)) %>%
   filter(state %nin% c("", "PR", "VI")) -> station_names
+
+
+### pull map 
+map <- tigris::counties(cb = T)
+map %>%
+  filter(STATEFP %nin%c(72, 60, 66, 69, 78 )) -> map
+
+### get centroids of counties and create sf objecct
+centroids <- sf::st_centroid(map$geometry)
+centroids <- data.frame(t(sapply(centroids, function(x) unlist(x))))
+centroids <- sf::st_as_sf(centroids, coords=c("X1", "X2"))
+
+### set crs for centroids since decimal degrees use 4269
+sf::st_crs(centroids) <- 4269
+### fix projection
+centroids<-tigris::shift_geometry(centroids)
+map<-tigris::shift_geometry(map)
+
+
+station_names %>%
+  filter(!is.na(lon),
+         !is.na(lat)) -> station_names
+station_names <- sf::st_as_sf(station_names, coords = c("lon", "lat")) 
+
+### set crs for centroids since decimal degrees use 4269
+sf::st_crs(station_names) <- 4269
+### fix projection
+station_names<-tigris::shift_geometry(station_names)
+
+
+
+
+ggplot()+
+ geom_sf(data=map) + 
+  geom_sf(data=centroids, size=1)
+
+
+
+centroids %>% 
+  #dplyr::group_by( id ) %>%
+  dplyr::mutate( np = sf::st_nearest_feature( geometry, station_names )) -> test
+                 
+test$station <- station_names$station_id[test$np]                
+
+
+
 
 
 url2020 <- "https://www.ncei.noaa.gov/data/global-summary-of-the-day/access/2020/"
@@ -39,7 +88,7 @@ url2021 %>%
 weather2021_links <- weather2021_links[grep(".csv", weather2021_links)]
 
 links <- paste0(url2020, weather2020_links)
- 
+
 links[1:10]%>%
   purrr::map(
     ~vroom::vroom(.)
@@ -48,36 +97,3 @@ links[1:10]%>%
 #test <- vroom::vroom(paste0(url2020, weather2020_links[1]))
 
 test <- data.table::rbindlist(dat)
-
-map <- tigris::counties(cb = T)
-map %>%
-  filter(STATEFP %nin%c(72, 60, 66, 69, 78 ))  -> map
-  #tigris::shift_geometry()-> map  # move ak/HI
-
-### get centroids of counties and create sf objecct
-centroids <- sf::st_centroid(map$geometry)
-
-centroids <- data.frame(t(sapply(centroids, function(x) unlist(x))))
-centroids <- sf::st_as_sf(centroids, coords=c("X1", "X2"))
-
-### set crs for centroids since decimal degrees use 4269
-sf::st_crs(centroids) <- 4269
-### fix projection
-centroids<-sf::st_transform(centroids, crs =5070)
-                            #crs='ESRI:102003')
-map <- sf::st_transform(map, crs =5070)
-
-station_names %>%
-  filter(!is.na(lon),
-         !is.na(lat)) -> station_names
-station_names <- sf::st_as_sf(station_names, coords = c("lon", "lat")) 
-
-map <- sf::st_transform(map, crs='ESRI:102003')
-centroids <- sf::st_transform(centroids, crs='ESRI:102003')
-
-ggplot()+
- geom_sf(data=map) + 
-  geom_sf(data=centroids, size=1)
-
-
-
