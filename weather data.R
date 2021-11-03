@@ -76,9 +76,16 @@ map$station_id <- test$station_id
 stations <- map
 st_geometry(stations)<-NULL
 
-write.table(stations, "/Users/timwiemken/Library/Mobile Documents/com~apple~CloudDocs/Work/Pfizer/covidtransmission_ecologic/stations_and_counties.csv", sep=",", row.names=F, na="")
+#write.table(stations, "/Users/timwiemken/Library/Mobile Documents/com~apple~CloudDocs/Work/Pfizer/covidtransmission_ecologic/stations_and_counties.csv", sep=",", row.names=F, na="")
 
 
+
+### uniques
+unique.stations <- unique(stations$station_id)
+
+## clear
+rm(list=setdiff(ls(), c("unique.stations")))
+gc()
 
 url2020 <- "https://www.ncei.noaa.gov/data/global-summary-of-the-day/access/2020/"
 url2021 <- "https://www.ncei.noaa.gov/data/global-summary-of-the-day/access/2021/"
@@ -87,16 +94,27 @@ url2020 %>%
   read_html() %>%
   html_nodes("a") %>% 
   html_attr("href") -> weather2020_links
+### drop non csv files
 weather2020_links <- weather2020_links[grep(".csv", weather2020_links)]
+## find just ids in our dataset
+weather2020_links <- gsub(".csv", "", weather2020_links)
+weather2020_links <- weather2020_links[weather2020_links%in%unique.stations]
+weather2020_links <- paste0(weather2020_links, ".csv")
+
 url2021 %>% 
   read_html() %>%
   html_nodes("a") %>% 
   html_attr("href") -> weather2021_links
 weather2021_links <- weather2021_links[grep(".csv", weather2021_links)]
+## find just ids in our dataset
+weather2021_links <- gsub(".csv", "", weather2021_links)
+weather2021_links <- weather2021_links[weather2021_links%in%unique.stations]
+weather2021_links <- paste0(weather2021_links, ".csv")
 
-links <- paste0(url2020, weather2020_links)
+links2020 <- paste0(url2020, weather2020_links)
+links2021 <- paste0(url2021, weather2021_links)
 
-links[1:10]%>%
+links2020%>%
   purrr::map(
     ~vroom::vroom(.)
   ) -> dat
@@ -104,3 +122,5 @@ links[1:10]%>%
 #test <- vroom::vroom(paste0(url2020, weather2020_links[1]))
 
 test <- data.table::rbindlist(dat)
+test$station_id <- as.character(test$STATION)
+test2 <- merge(test, stations, by="station_id", all.x=T)
