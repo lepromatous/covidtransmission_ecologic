@@ -162,12 +162,64 @@ test4$station_id <- as.character(test4$STATION)
 test4 <- as.data.frame(test4)
 test4 <- merge(test4, stations[unique(stations$station_id),], by="station_id", all=T)
 
-
-
-
-
-
 df2020 <- plyr::rbind.fill(test1,test2, test3, test4)
 
 df2020 <- merge(df2020, stations[unique(stations$station_id),], by="station_id", all=T)
-write.table(df2020, "~/Desktop/weather2020.csv", sep=",", row.names=F, na="")
+#write.table(df2020, "~/Desktop/weather2020.csv", sep=",", row.names=F, na="")
+
+#####################################
+### 2021 data
+#####################################
+### map links to vroom to read in all data. 
+links2021[1:500]%>%
+  purrr::map(
+    ~vroom::vroom(.)
+  ) -> dat1_2021
+
+### bind to one df
+test1_2021 <- data.table::rbindlist(dat1_2021)
+test1_2021$station_id <- as.character(test1_2021$STATION)
+test1_2021 <- as.data.frame(test1_2021)
+
+### part 2
+links2021[501:1000]%>%
+  purrr::map(
+    ~vroom::vroom(.)
+  ) -> dat2_2021
+
+### bind to one df chunk 2
+test2_2021 <- data.table::rbindlist(dat2_2021)
+test2_2021$station_id <- as.character(test2_2021$STATION)
+test2_2021 <- as.data.frame(test2_2021)
+
+### part 3
+links2021[1001:1400]%>%
+  purrr::map(
+    ~vroom::vroom(.)
+  ) -> dat3_2021
+
+### bind to one df chunk 2
+test3_2021 <- data.table::rbindlist(dat3_2021)
+test3_2021$station_id <- as.character(test3_2021$STATION)
+test3_2021 <- as.data.frame(test3_2021)
+test3_2021 <- merge(test3_2021, stations[unique(stations$station_id),], by="station_id", all=T)
+
+
+### part 4
+links2021[1401:1740]%>%
+  purrr::map(
+    ~vroom::vroom(.)
+  ) -> dat4_2021
+
+### bind to one df chunk 2
+test4_2021 <- data.table::rbindlist(dat4_2021)
+test4_2021$station_id <- as.character(test4_2021$STATION)
+test4_2021 <- as.data.frame(test4_2021)
+test4_2021 <- merge(test4_2021, stations[unique(stations$station_id),], by="station_id", all=T)
+
+
+df2021_2021 <- plyr::rbind.fill(test1_2021,test2_2021, test3_2021, test4_2021)
+
+df2021_2021 <- merge(df2021_2021, stations[unique(stations$station_id),], by="station_id", all=T)
+
+write.table(df2021_2021, "~/Desktop/weather2021.csv", sep=",", row.names=F, na="")
