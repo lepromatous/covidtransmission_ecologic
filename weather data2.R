@@ -150,9 +150,24 @@ test3 <- as.data.frame(test3)
 test3 <- merge(test3, stations[unique(stations$station_id),], by="station_id", all=T)
 
 
+### part 4
+links2020[1401:1740]%>%
+  purrr::map(
+    ~vroom::vroom(.)
+  ) -> dat4
+
+### bind to one df chunk 2
+test4 <- data.table::rbindlist(dat4)
+test4$station_id <- as.character(test4$STATION)
+test4 <- as.data.frame(test4)
+test4 <- merge(test4, stations[unique(stations$station_id),], by="station_id", all=T)
 
 
-df2020 <- rbind(test1,test2, test3)
+
+
+
+
+df2020 <- plyr::rbind.fill(test1,test2, test3, test4)
 
 df2020 <- merge(df2020, stations[unique(stations$station_id),], by="station_id", all=T)
-
+write.table(df2020, "~/Desktop/weather2020.csv", sep=",", row.names=F, na="")
