@@ -116,15 +116,43 @@ links2020 <- paste0(url2020, weather2020_links)
 links2021 <- paste0(url2021, weather2021_links)
 
 ### map links to vroom to read in all data. 
-links2020%>%
+links2020[1:500]%>%
   purrr::map(
     ~vroom::vroom(.)
-  ) -> dat
+  ) -> dat1
 
 ### bind to one df
-test <- data.table::rbindlist(dat)
-test$station_id <- as.character(test$STATION)
-test <- as.data.frame(test)
+test1 <- data.table::rbindlist(dat1)
+test1$station_id <- as.character(test1$STATION)
+test1 <- as.data.frame(test1)
+
+### part 2
+links2020[501:1000]%>%
+  purrr::map(
+    ~vroom::vroom(.)
+  ) -> dat2
+
+### bind to one df chunk 2
+test2 <- data.table::rbindlist(dat2)
+test2$station_id <- as.character(test2$STATION)
+test2 <- as.data.frame(test2)
+
+### part 3
+links2020[1001:1400]%>%
+  purrr::map(
+    ~vroom::vroom(.)
+  ) -> dat3
+
+### bind to one df chunk 2
+test3 <- data.table::rbindlist(dat3)
+test3$station_id <- as.character(test3$STATION)
+test3 <- as.data.frame(test3)
+test3 <- merge(test3, stations[unique(stations$station_id),], by="station_id", all=T)
 
 
-test2 <- merge(test, stations[unique(stations$station_id),], by="station_id", all=T)
+
+
+df2020 <- rbind(test1,test2, test3)
+
+df2020 <- merge(df2020, stations[unique(stations$station_id),], by="station_id", all=T)
+
